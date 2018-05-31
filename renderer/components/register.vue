@@ -71,7 +71,7 @@
                     this.passwordError = '密码不能为空';
                     return;
                 };
-                if(this.password.length <= 6){
+                if(this.password.length < 6){
                     this.passwordError = '密码不能小于6位';
                     return;
                 };

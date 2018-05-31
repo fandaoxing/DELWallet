@@ -1,7 +1,11 @@
-import DelJs from 'deljs'
-import ipcMain from './ipcMain'
-import packageConfig from '../package.json'
-import {clipboard} from 'electron'
+const DelJs = require('deljs')
+// const Tx = require('ethereumjs-tx');
+const {clipboard, ipcMain} = require('electron')
+
+// const {ipcMain} = require('./ipcMain')
+const packageConfig = require('../package.json')
+
+const {logger} = require('./log');
 
 let delState;
 let delJs;
@@ -9,7 +13,13 @@ let sender;
 let loginObject;
 let coinbase;
 let voteRound;
-let accountsPassword;
+let mining = false;
+let miningManual = false;
+let producerMining = false;
+
+module.exports.getMining = function (){
+    return mining;
+};
 
 let ipcMainSend;
 sender = {};
@@ -58,12 +68,12 @@ let viewUnit = res => {
 let getAccounts = () => {
     delJs.eth.getAccounts((err, res) => {
         if(err) return;
-        console.log(res, 'getAccounts');
+        // console.log(res, 'getAccounts');
         sender.send('accounts', res);
     });
 };
 
-export let delJsStart = () => {
+let delJsStart = () => {
 
     if(delJs) return;
 
@@ -74,13 +84,39 @@ export let delJsStart = () => {
     delJs = new DelJs();
     delJs.setProvider(new DelJs.providers.HttpProvider('http://127.0.0.1:7001'));
 
+    // delJs.eth.getTransactionCount('0x3b28a24ac49d60658c6170bd4af7ca0ffa03e53a', function (err, nonce){
+    //     if (err)  console.log(err, 'nonce');
+    //     console.log(nonce, 'nonce');
+    //     delJs.eth.estimateGas({
+    //         to: '0xa92d6ddd973ec94f0cc3700287cc09c9c148aade',
+    //         data: delJs.toHex('签名数据'),
+    //     }, (err, estimategas) => {
+    //         if (err)  console.log(err, 'estimategas');
+    //         console.log(estimategas, 'estimategas');
+    //         var rawTx = {
+    //             nonce: nonce,
+    //             gasLimit: estimategas,
+    //             from : '0x3b28a24ac49d60658c6170bd4af7ca0ffa03e53a',
+    //             to: '0xa92d6ddd973ec94f0cc3700287cc09c9c148aade',
+    //             data: delJs.toHex('签名数据')
+    //         }
+    //         var tx = new Tx(rawTx);
+    //         tx.sign(new Buffer('6de2ba56f488178d1737e427658c5aaedf9c8ff2bec50f97d3a79d86852240e3', 'hex'));
+    //         var serializedTx = tx.serialize();
+    //         delJs.eth.sendRawTransaction('0x' + serializedTx.toString('hex'), function(err, hash) {
+    //             if (err)  console.log(err, 'sendRawTransaction err');
+    //             console.log(hash, 'sendRawTransaction');
+    //         });
+    //     });
+    // });
+
     /**
      * 获取钱包地址
      */
     ipcMain.on('getCoinbase', (event, arg) => {
         delJs.eth.getCoinbase((err, res) => {
             if(err){
-                console.log(err, 'getCoinbase Err');
+                logger.error(err);
                 return;
             }
             if(coinbase){
@@ -89,7 +125,15 @@ export let delJsStart = () => {
                 coinbase = res;
                 sender.send('getCoinbase', res);
             };
-            console.log(res, 'getCoinbase');
+            // console.log(res, 'getCoinbase');
+            // delJs.eth.sendTransaction({
+            //     from : coinbase,
+            //     to : '32a0c7a5a644d421b400c3edea8424b2e440ec1e',
+            //     data : '测试 sendTransaction'
+            // }, (err, addr) => {
+            //     if(err) console.error(err);
+            //     console.log(addr, 'sendTransaction');
+            // });
         });
     });
 
@@ -106,6 +150,9 @@ export let delJsStart = () => {
      */
     ipcMain.on('newAccount', (event, arg) => {
         delJs.personal.newAccount(arg, (err, res) => {
+            if(err){
+                logger.error(err);
+            }
             loginObject = {err, res};
             sender.send('loginStatus', loginObject);
         });
@@ -116,6 +163,9 @@ export let delJsStart = () => {
      */
     ipcMain.on('importRawKey', (event, arg) => {
         delJs.personal.importRawKey(arg.privateKey, arg.password, (err, res) => {
+            if(err){
+                logger.error(err);
+            }
             loginObject = {err, res};
             sender.send('loginStatus', loginObject);
         });
@@ -125,17 +175,21 @@ export let delJsStart = () => {
      * 导出钱包
      */
     ipcMain.on('exportRawKey', (event, arg) => {
-        console.log(arg, 'exportRawKey');
+        // console.log(arg, 'exportRawKey');
         delJs.personal.unlockAccount(coinbase, arg, (err, res) => {
+            if(err){
+                logger.error(err);
+            }
             console.log(res, 'exportRawKey');
             try{
                 delJs.personal.exportRawKey(coinbase, (err, res) => {
-                    console.log(res, 'exportRawKey');
+                    // console.log(res, 'exportRawKey');
                     clipboard.writeText(res);
                     sender.send('exportRawKeyState', res);
                 });
             }catch (e) {
                 console.log(e.message);
+                logger.error(e);
             };
         });
 
@@ -146,6 +200,9 @@ export let delJsStart = () => {
      */
     ipcMain.on('unlockAccount', (event, arg) => {
         delJs.personal.unlockAccount(arg.accounts, arg.password, (err, res) => {
+            if(err){
+                logger.error(err);
+            }
             loginObject = {err, res};
             sender.send('loginStatus', loginObject);
         });
@@ -156,6 +213,9 @@ export let delJsStart = () => {
      */
     ipcMain.on('lockAccount', (event, arg) => {
         delJs.personal.lockAccount(coinbase, (err, res) => {
+            if(err){
+                logger.error(err);
+            }
             loginObject = {err : 'lockAccount', res};
             sender.send('loginStatus', loginObject);
             sender.send('lockAccountState', res);
@@ -167,7 +227,10 @@ export let delJsStart = () => {
      */
     ipcMain.on('getBalance', (event, arg) => {
         delJs.eth.getBalance(coinbase, "latest", (err, res) => {
-            console.log(viewUnit(res), 'getBalance');
+            if(err){
+                logger.error(err);
+            }
+            // console.log(viewUnit(res), 'getBalance');
             sender.send('getBalance', viewUnit(res));
         });
     });
@@ -177,6 +240,9 @@ export let delJsStart = () => {
      */
     ipcMain.on('getVoterFreeze', (event, arg) => {
         delJs.eth.getVoterFreeze(coinbase, "latest", (err, res) => {
+            if(err){
+                logger.error(err);
+            }
             sender.send('getVoterFreeze', viewUnit(res));
         });
     });
@@ -186,6 +252,9 @@ export let delJsStart = () => {
      */
     ipcMain.on('getFreeze', (event, arg) => {
         delJs.eth.getFreeze(coinbase, "latest", (err, res) => {
+            if(err){
+                logger.error(err);
+            }
             sender.send('getFreeze', viewUnit(res));
         });
     });
@@ -195,14 +264,23 @@ export let delJsStart = () => {
      */
     ipcMain.on('voteSurplusBlock', (event, arg) => {
         delJs.eth.getRoundNumberByBlockNumber('latest', (err, round) => {
+            if(err){
+                logger.error(err);
+            }
             // console.log(round);
             sender.send('round', round);
             voteRound = round;
             delJs.eth.getEndBlockNumberByRoundNumber(round, (err, endBlock) => {
+                if(err){
+                    logger.error(err);
+                }
                 // console.log(endBlock, 'getEndBlockNumberByRoundNumber');
                 sender.send('endBlock', endBlock);
                 delJs.eth.getBlockNumber((err, res) => {
-                    console.log(endBlock - res, 'voteSurplusBlock');
+                    if(err){
+                        logger.error(err);
+                    }
+                    // console.log(endBlock - res, 'voteSurplusBlock');
                     sender.send('voteSurplusBlock', endBlock - res);
                 })
             })
@@ -214,13 +292,16 @@ export let delJsStart = () => {
      */
     ipcMain.on('getLastTxs', (event, arg) => {
         delJs.eth.getLastTxs(30, [coinbase], (err, res) => {
-            // console.log(res, 'getLastTxs');
+            if(err){
+                logger.error(err);
+            }
             if(Array.isArray(res)){
                 res.forEach((item) => {
                     item.price = viewUnit(item.price);
                     item.value = viewUnit(item.value);
                 });
             };
+            // console.log(res, 'getLastTxs');
             sender.send('getLastTxs', res);
         });
     });
@@ -230,7 +311,10 @@ export let delJsStart = () => {
      */
     ipcMain.on('getBlockNumber', (event, arg) => {
         delJs.eth.getBlockNumber((err, res) => {
-            console.log(res, 'getBlockNumber');
+            if(err){
+                logger.error(err);
+            }
+            // console.log(res, 'getBlockNumber');
             sender.send('getBlockNumber', res);
         });
     });
@@ -240,6 +324,9 @@ export let delJsStart = () => {
      */
     ipcMain.on('getPeerCount', (event, arg) => {
         delJs.net.getPeerCount((err, res) => {
+            if(err){
+                logger.error(err);
+            }
             sender.send('getPeerCount', res);
         });
     });
@@ -249,6 +336,10 @@ export let delJsStart = () => {
      */
     ipcMain.on('getSyncing', (event, arg) => {
         delJs.eth.getSyncing((err, res) => {
+            if(err){
+                logger.error(err);
+            }
+            // console.log(res, 'getSyncing');
             sender.send('getSyncing', res);
         });
     });
@@ -258,7 +349,10 @@ export let delJsStart = () => {
      */
     ipcMain.on('getLastTexts', (event, arg) => {
         delJs.eth.getLastTexts(5, [coinbase], (err, res) => {
-            console.log(res, 'getLastTexts');
+            if(err){
+                logger.error(err);
+            }
+            // console.log(res, 'getLastTexts');
             sender.send('getLastTexts', res);
         });
     });
@@ -268,7 +362,10 @@ export let delJsStart = () => {
      */
     ipcMain.on('getLastTextsOfficial', (event, arg) => {
         delJs.eth.getLastTexts(5, ['0x24aa4f9961078c788c397dd27a71b0c5211c2931'], (err, res) => {
-            console.log(res, 'getLastTextsOfficial');
+            if(err){
+                logger.error(err);
+            }
+            // console.log(res, 'getLastTextsOfficial');
             sender.send('getLastTextsOfficial', res);
         });
     });
@@ -278,6 +375,11 @@ export let delJsStart = () => {
      */
     ipcMain.on('getGasPrice', (event, arg) => {
         delJs.eth.getGasPrice((err, res) => {
+            if(err){
+                logger.error(err);
+            }
+            var vPrice = res * 21000;
+            sender.send('getGasPriceView', viewUnit(vPrice));
             sender.send('getGasPrice', viewUnit(res));
         });
     });
@@ -289,17 +391,19 @@ export let delJsStart = () => {
         arg.from = coinbase;
         arg.value = delJs.toWei(arg.value, 'ether');
         if(arg.gasPrice){
-            arg.gasPrice = delJs.toWei(arg.gasPrice, 'ether');
+            arg.gasPrice = delJs.toWei(arg.gasPrice / 210000, 'ether').replace(/\.[0-9]*/, '');
+            // console.log(arg.gasPrice);
         };
         delJs.personal.unlockAccount(coinbase, arg.password, (err, res) => {
             try{
                 delete arg.password;
-                console.log(arg);
+                // console.log(arg);
                 delJs.eth.sendTransaction(arg, (err, addr) => {
-                    console.log(addr, 'hash sendTransaction');
+                    // console.log(addr, 'hash sendTransaction');
                     var msg = null;
                     if(err){
                         msg = err.message;
+                        logger.error(err);
                         if(msg && /gas\s\*\sprice\s\+\svalue/.test(msg)){
                             msg = '转账金额大于你的余额';
                         };
@@ -309,6 +413,7 @@ export let delJsStart = () => {
             }catch (e) {
                 sender.send('sendTransactionState', {err : e.message, res : null});
                 console.log(e.message);
+                logger.error(e);
             };
         });
     });
@@ -318,6 +423,9 @@ export let delJsStart = () => {
      */
     ipcMain.on('checkSuperProducer', (event, arg) => {
         delJs.eth.checkSuperProducer(coinbase, (err, res) => {
+            if(err){
+                logger.error(err);
+            }
             sender.send('checkSuperProducer', res);
         });
     });
@@ -327,6 +435,9 @@ export let delJsStart = () => {
      */
     ipcMain.on('checkProducer', (event, arg) => {
         delJs.eth.checkProducer(coinbase, (err, res) => {
+            if(err){
+                logger.error(err);
+            }
             sender.send('checkProducer', res);
         });
     });
@@ -336,6 +447,10 @@ export let delJsStart = () => {
      */
     ipcMain.on('getVoting', (event, arg) => {
         delJs.eth.getVoting((err, res) => {
+            if(err){
+                logger.error(err);
+            }
+            // console.log(res, '===========getVoting=========');
             sender.send('getVoting', res);
         });
     });
@@ -344,9 +459,18 @@ export let delJsStart = () => {
      *  挖矿状态
      */
     ipcMain.on('mining', (event, arg) => {
+        // console.log('-----------------mining------------------');
         delJs.eth.getMining((err, res) => {
-            console.log(res, 'mining');
+            if(err){
+                logger.error(err);
+            }
+            // console.log(res, 'mining');
+            if(miningManual){
+                mining = res;
+                miningManual = false;
+            };
             sender.send('mining', res);
+            sender.send('producerMining', producerMining);
         });
     });
 
@@ -354,11 +478,38 @@ export let delJsStart = () => {
      *  开始挖矿
      */
     ipcMain.on('minerStart', (event, arg) => {
-        console.log(arg);
+        // console.log(arg);
         delJs.eth.startAutoVote(arg, (err, res) => {
+            if(err){
+                logger.error(err);
+            }
             delJs.miner.start((err, res) => {
-                console.log(res, 'start');
+                if(err){
+                    logger.error(err);
+                }
+                producerMining = arg.producer ? arg.producer : false;
+                // console.log(res, 'start');
+                miningManual = true;
                 sender.send('minerStart');
+            });
+        });
+    });
+
+    /**
+     *  重启开始挖矿
+     */
+    ipcMain.on('minerReset', (event, arg) => {
+        if(producerMining){
+            arg.producer = producerMining;
+        };
+        delJs.eth.startAutoVote(arg, (err, res) => {
+            if(err){
+                logger.error(err);
+            }
+            delJs.miner.start((err, res) => {
+                if(err){
+                    logger.error(err);
+                }
             });
         });
     });
@@ -368,7 +519,14 @@ export let delJsStart = () => {
      */
     ipcMain.on('minerStop', (event, arg) => {
         delJs.eth.stopAutoVote((err, res) => {
+            if(err){
+                logger.error(err);
+            }
             delJs.miner.stop((err, res) => {
+                if(err){
+                    logger.error(err);
+                }
+                miningManual = true;
                 sender.send('minerStop');
             });
         });
@@ -379,6 +537,9 @@ export let delJsStart = () => {
      */
     ipcMain.on('getVoterState', (event, arg) => {
         delJs.eth.getVoterState(coinbase, (err, res) => {
+            if(err){
+                logger.error(err);
+            }
             if(res && res.vote){
                 res.vote = viewUnit(res.vote);
             }
@@ -390,14 +551,23 @@ export let delJsStart = () => {
      *  上轮投票数据
      */
     ipcMain.on('upVoteRound', (event, arg) => {
-        delJs.eth.getBeginBlockNumberByRoundNumber(voteRound - 1, (err, res) => {
-            delJs.eth.getVoterState(coinbase, res, (err, res) => {
-                if(res && res.vote){
-                    res.vote = viewUnit(res.vote);
+        if(voteRound){
+            delJs.eth.getBeginBlockNumberByRoundNumber(voteRound - 1, (err, res) => {
+                if(err){
+                    logger.error(err);
                 }
-                sender.send('upVoteRound', res);
-            })
-        });
+                // console.log(res, 'getBeginBlockNumberByRoundNumber');
+                delJs.eth.getVoterState(coinbase, res, (err, res) => {
+                    if(err){
+                        logger.error(err);
+                    }
+                    if(res && res.vote){
+                        res.vote = viewUnit(res.vote);
+                    }
+                    sender.send('upVoteRound', res);
+                })
+            });
+        };
     });
 
     /**
@@ -405,6 +575,10 @@ export let delJsStart = () => {
      */
     ipcMain.on('getBlockReward', (event, arg) => {
         delJs.eth.getBlockReward(30, coinbase, (err, res) => {
+            if(err){
+                logger.error(err);
+            };
+            // console.log(res);
             if(Array.isArray(res)){
                 res.forEach((item) => {
                     item.block_reward = viewUnit(item.block_reward);
@@ -414,10 +588,12 @@ export let delJsStart = () => {
                     item.total = item.block_reward + item.super_coinbase_reward + item.coinbase_reward + item.vote_reward;
                 });
             };
-            console.log(res, 'getBlockReward');
+            // console.log(res, 'getBlockReward');
             sender.send('getBlockReward', res);
         });
     });
+
+
 
     /**
      *  发送简讯
@@ -428,9 +604,12 @@ export let delJsStart = () => {
             arg.gasPrice = delJs.toWei(arg.gasPrice, 'ether');
         };
         delJs.personal.unlockAccount(coinbase, arg.password, (err, res) => {
+            if(err){
+                logger.error(err);
+            }
             try{
                 delete arg.password;
-                console.log(arg, 'sendText arg,');
+                // console.log(arg, 'sendText arg,');
                 delJs.eth.sendText(arg, (err, addr) => {
                     if(err) console.error(err);
                     var msg = null;
@@ -445,6 +624,7 @@ export let delJsStart = () => {
                 });
             }catch (e) {
                 console.log(e.message);
+                logger.error(e);
             };
         });
     });
@@ -454,6 +634,9 @@ export let delJsStart = () => {
      */
     ipcMain.on('version', (event, arg) => {
         delJs.version.getNode((err, res) => {
+            if(err){
+                logger.error(err);
+            }
             sender.send('version', res);
         });
     });
@@ -463,6 +646,9 @@ export let delJsStart = () => {
      */
     ipcMain.on('getNetwork', (event, arg) => {
         delJs.version.getNetwork((err, res) => {
+            if(err){
+                logger.error(err);
+            }
             sender.send('getNetwork', res);
         });
     });
@@ -471,7 +657,7 @@ export let delJsStart = () => {
      *  钱包客户端版本号
      */
     ipcMain.on('packageVersion', (event, arg) => {
-        sender.send('packageVersion', packageConfig.version);
+        sender.send('packageVersion', packageConfig.versionWallet);
     });
 
 };
@@ -483,7 +669,10 @@ ipcMain.on('delState', (event, arg) => {
     };
 });
 
-export default DelJs;
+module.exports.delJsStart = delJsStart;
+module.exports.delJs = function () {
+    return delJs;
+};
 
 
 

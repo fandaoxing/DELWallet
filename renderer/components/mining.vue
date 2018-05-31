@@ -16,10 +16,20 @@
                     <dd><span :class="getVoting ? 'active' : ''">{{getVoting ? '已激活' : '未激活'}}</span></dd>
                 </dl>
                 <dl>
-                    <dt>开启选举</dt>
+                    <dt>自助选举</dt>
                     <dd>
-                        <label @click.prevent="setMining">
-                            <input type="checkbox" v-if="mining" checked >
+                        <label @click.prevent="setMining(false)">
+                            <input type="checkbox" v-if="mining && !producerMining" checked >
+                            <input type="checkbox" v-else>
+                            <i></i>
+                        </label>
+                    </dd>
+                </dl>
+                <dl>
+                    <dt>选举自己</dt>
+                    <dd>
+                        <label @click.prevent="setMining(true)">
+                            <input type="checkbox" v-if="mining && producerMining" checked >
                             <input type="checkbox" v-else>
                             <i></i>
                         </label>
@@ -31,7 +41,7 @@
                     <h4 class="type-2"><small>本轮投票</small></h4>
                     <dl>
                         <dt>获得票数</dt>
-                        <dd><b>{{getVoterState.vote || 0}}</b></dd>
+                        <dd><b>{{(getVoterState.vote || 0).toFixed(6)}}</b></dd>
                     </dl>
                     <dl>
                         <dt>票数排名</dt>
@@ -58,7 +68,28 @@
                 </section>
             </section>
             <section class="big list-type-2">
-                <h4><small>收益详情</small></h4>
+                <h4 class="type-2"><small>收益详情</small>(本轮选举收益将在下一轮到账)</h4>
+                <ul class="list-box mining-list">
+                    <li v-for="item in getBlockReward">
+                        <section>
+                            <div>
+                                <span>{{localDate(item.time)}}</span>
+                                <span><small>总额：</small><b>{{item.total}}</b></span>
+                                <span><small>区块高度：</small>{{item.number}}<small>({{303 - item.number % 303}} 块以后获取奖励)</small></span>
+                            </div>
+                            <dl>
+                                <dt>超级节点收益:</dt>
+                                <dd>{{item.super_coinbase_reward}}</dd>
+                                <dt>主节点收益:</dt>
+                                <dd>{{item.coinbase_reward}}</dd>
+                                <dt>投票收益:</dt>
+                                <dd>{{item.vote_reward}}</dd>
+                                <dt>块收益:</dt>
+                                <dd>{{item.block_reward}}</dd>
+                            </dl>
+                        </section>
+                    </li>
+                </ul><!--
                 <table-data class="mining-table">
                     <dl slot="head">
                         <dd>时间</dd>
@@ -70,13 +101,13 @@
                     </dl>
                     <dl slot="body" v-for="item in getBlockReward">
                         <dd>{{item.time}}</dd>
-                        <dd>{{item.number}}({{303 - item.number % 303}} 块以后获取奖励)</dd>
-                        <dd>{{item.coinbase_reward}}</dd>
+                        <dd>{{item.number}}<small>({{303 - item.number % 303}} 块以后获取奖励)</small></dd>
                         <dd>{{item.super_coinbase_reward}}</dd>
+                        <dd>{{item.coinbase_reward}}</dd>
                         <dd>{{item.vote_reward}}</dd>
                         <dd>{{item.total}}</dd>
                     </dl>
-                </table-data>
+                </table-data>-->
                 <empty-data v-if="getBlockReward.length <= 0" />
             </section>
         </section>
@@ -104,6 +135,9 @@
                 'getBlockReward',
                 'getSyncing',
                 'getBlockNumber',
+                'getBalance',
+                'getVoterFreeze',
+                'producerMining',
             ])
         },
         watch : {
@@ -118,21 +152,28 @@
             miningState (n, o){
                 if(n == false){
                     // this.mining = !this.mining;
-                    this.$store.commit('msg/add', this.mining ? '自动选举正在关闭，请稍候...' : '自动选举正在启动，请稍候...');
+                    this.$store.commit('msg/add', '正在设置DPOS选举，请稍候...');
                 };
             }
         },
         methods : {
-            setMining (){
+            setMining (producer){
+                if((Number.parseFloat(this.getBalance + this.getVoterFreeze) < 4096) && !this.mining){
+                    this.$store.commit('msg/err', '持币量小于4096不能进行无法开启选举');
+                    return;
+                };
                 if(this.getSyncing){
                     this.$store.commit('msg/err', '正在同步区块不能设置选举');
                     return;
                 };
                 if(this.miningState) {
-                    this.$store.commit('msg/err', '正在设置中...');
+                    this.$store.commit('msg/err', '不要重复设置选举，请稍候...');
                     return;
                 };
-                this.$store.commit('setMining', !this.mining);
+                this.$store.commit('setMining', {
+                    mining : this.producerMining && !producer &&  this.mining ? this.mining : !this.producerMining && producer && this.mining ? this.mining : !this.mining,
+                    producer : producer
+                });
             },
         },
     }

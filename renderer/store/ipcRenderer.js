@@ -1,10 +1,93 @@
 import store from './index'
+import router from '../router/index'
 
 let ipcRenderer = {};
+let routerNmae = '';
+let getCoinbase = null;
+let getSyncingState = null;
+let getBlockNumber = null;
 let pollTimer;
 if (window.require) {
     ipcRenderer = window.require('electron').ipcRenderer
 };
+
+router.beforeEach((to, from, next) => {
+    ipcRenderer.send('getCoinbase');
+    next();
+    routerNmae = to.name;
+});
+
+var routerReplace = {
+    'common' : [
+        'getBalance',
+        'voteSurplusBlock',
+        'getBlockNumber',
+        'getSyncing',
+    ],
+    'index' : [
+        'getVoterFreeze',
+        'getFreeze',
+        'getPeerCount',
+        'getLastTexts',
+        'getLastTextsOfficial',
+        'getLastTxs',
+    ],
+    'transfer' : [
+        'getGasPrice'
+    ],
+    'tradeDetail' : [
+        'getLastTxs'
+    ],
+    'news' : [
+        'getGasPrice'
+    ],
+    'mining' : [
+        'getVoterFreeze',
+        'checkSuperProducer',
+        'checkProducer',
+        'getVoting',
+        'mining',
+        'getVoterState',
+        'upVoteRound',
+        'getBlockReward',
+        'round',
+    ],
+    'system' : [
+        'getNetwork',
+        'version',
+        'packageVersion',
+    ]
+};
+
+function pollEvent(eventName, keyName) {
+    // console.log(eventName, keyName);
+    ipcRenderer.on(eventName, (event, res) => {
+        // console.log(eventName);
+        if(getCoinbase && !getSyncingState){
+            if(keyName == routerNmae || keyName == 'common'){
+                if(!window[eventName + 'TimeOut']){
+                    window[eventName + 'TimeOut'] = setTimeout(function (){
+                        // console.log(eventName, keyName);
+                        window[eventName + 'TimeOut'] = null;
+                        ipcRenderer.send(eventName);
+                    }, 1000);
+                };
+            };
+        };
+    });
+}
+
+function pollDelJs(name){
+    for(let keyName in routerReplace){
+        routerReplace[keyName].forEach(eventName => {
+            pollEvent(eventName, keyName);
+        });
+    };
+};
+
+pollDelJs();
+
+
 /**
  * 发送 send 到 ipcMain，建立进程通讯
  */
@@ -31,30 +114,37 @@ ipcRenderer.on('accounts', (event, res) => {
 ipcRenderer.on('getCoinbase', (event, res) => {
     if(res){
         store.commit('getCoinbase', res);
+
+        getCoinbase = res;
+
         ipcRenderer.send('getBalance');
+        ipcRenderer.send('voteSurplusBlock');
+        ipcRenderer.send('getBlockNumber');
+        ipcRenderer.send('getSyncing');
+
         ipcRenderer.send('getVoterFreeze');
         ipcRenderer.send('getFreeze');
-        ipcRenderer.send('voteSurplusBlock');
-        ipcRenderer.send('getLastTxs');
-        ipcRenderer.send('getBlockNumber');
         ipcRenderer.send('getPeerCount');
-        ipcRenderer.send('getSyncing');
+        ipcRenderer.send('getLastTexts');
+        ipcRenderer.send('getLastTextsOfficial');
+
         ipcRenderer.send('getGasPrice');
+
+        ipcRenderer.send('getLastTxs');
+
         ipcRenderer.send('checkSuperProducer');
         ipcRenderer.send('checkProducer');
         ipcRenderer.send('getVoting');
         ipcRenderer.send('mining');
-
         ipcRenderer.send('getVoterState');
-        ipcRenderer.send('round');
         ipcRenderer.send('upVoteRound');
         ipcRenderer.send('getBlockReward');
+        ipcRenderer.send('round');
 
         ipcRenderer.send('getNetwork');
         ipcRenderer.send('version');
         ipcRenderer.send('packageVersion');
-        ipcRenderer.send('getLastTexts');
-        ipcRenderer.send('getLastTextsOfficial');
+
     };
 });
 
@@ -73,13 +163,10 @@ ipcRenderer.on('loginStatus', (event, res) => {
         store.commit('loginStatus', true);
         store.commit('msg/add', '登录成功');
     };
+    // store.commit('sendAccounts');
+    // store.commit('sendGetCoinbase');
     ipcRenderer.send('accounts');
     ipcRenderer.send('getCoinbase');
-    if(!pollTimer){
-        pollTimer = setInterval(function (){
-            ipcRenderer.send('getCoinbase');
-        }, 1000);
-    };
 });
 
 /**
@@ -123,6 +210,7 @@ ipcRenderer.on('getCoinbase', (event, res) => {
 ipcRenderer.on('getBalance', (event, res) => {
     store.commit('getBalance', res);
 });
+
 /**
  * 投票锁定
  */
@@ -155,6 +243,7 @@ ipcRenderer.on('getLastTxs', (event, res) => {
  * 返回当前区块号
  */
 ipcRenderer.on('getBlockNumber', (event, res) => {
+    getBlockNumber = res;
     store.commit('getBlockNumber', res);
 });
 
@@ -173,13 +262,39 @@ ipcRenderer.on('getPeerCount', (event, res) => {
  */
 ipcRenderer.on('getSyncing', (event, res) => {
     store.commit('getSyncing', res);
+    if(res && getBlockNumber < res.highestBlock){
+        getBlockNumber = res.highestBlock;
+        store.commit('getBlockNumber', getBlockNumber);
+    };
+    if(res && (res.highestBlock - res.currentBlock) > 250){
+        store.commit('getSyncingState', true);
+        getSyncingState = true;
+        router.push('/index');
+        setTimeout(function (){
+            ipcRenderer.send('getSyncing');
+        }, 1000);
+    }else{
+        if(getSyncingState){
+            getSyncingState = false;
+            ipcRenderer.send('getBlockNumber');
+            ipcRenderer.send('getCoinbase');
+            store.commit('getSyncingState', false);
+        };
+    }
 });
 
 /**
- * 返回当前的gas价格。这个值由最近几个块的gas价格的中值6决定。
+ * 返回当前的gasPrice价格。这个值由最近几个块的gas价格的中值6决定。
  */
 ipcRenderer.on('getGasPrice', (event, res) => {
     store.commit('getGasPrice', res);
+});
+
+/**
+ * 返回当前的gasPrice价格。用来显示给用户看
+ */
+ipcRenderer.on('getGasPriceView', (event, res) => {
+    store.commit('getGasPriceView', res);
 });
 
 
@@ -232,6 +347,20 @@ ipcRenderer.on('getVoting', (event, res) => {
  */
 ipcRenderer.on('mining', (event, res) => {
     store.commit('mining', res);
+});
+
+/**
+ * 是否投票給自己
+ */
+ipcRenderer.on('producerMining', (event, res) => {
+    store.commit('producerMining', res);
+});
+
+/**
+ *  重启开启挖矿
+ */
+ipcRenderer.on('minerReset', (event, res) => {
+    store.commit('minerReset');
 });
 
 /**
@@ -339,6 +468,20 @@ ipcRenderer.on('getLastTextsOfficial', (event, res) => {
  */
 ipcRenderer.on('copyState', (event, res) => {
     store.commit('copyState', res);
+});
+
+/**
+ * 自动更新状态
+ */
+ipcRenderer.on('updateStatus', (event, res) => {
+    store.commit('updateStatus', res);
+});
+
+/**
+ * 自动更新下载状态
+ */
+ipcRenderer.on('updateProgress', (event, res) => {
+    store.commit('updateProgress', res);
 });
 
 

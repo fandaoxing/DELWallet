@@ -1,9 +1,14 @@
 <template>
     <section class="main-box">
         <section class="index-list main-list">
+            <section class="list-type-2" v-if="getSyncingState">
+                <h4 class="type-2">
+                    <small>区块同步极速模式</small>
+                </h4>
+            </section>
             <section class="index-money big">
                 <h4>
-                    <small>我的余额</small>
+                    <small>我的余额</small> <span v-if="getSyncing">(区块同步中，以最新区块高度为准)</span>
                     <b>{{(getBalance + getFreeze) || 0}}</b>
                 </h4>
                 <dl>
@@ -18,8 +23,7 @@
                     <dt>投票锁定：</dt>
                     <dd>
                         {{getVoterFreeze || 0}}
-
-                        <small v-if="getSyncing">正在同步区块</small>
+                        <small v-if="getSyncing">(区块同步中)</small>
                         <small v-else>(剩余{{voteSurplusBlock}}块)</small>
                     </dd>
                 </dl>
@@ -33,16 +37,33 @@
                 <h4 class="title"><small>区块同步</small></h4>
                 <section>
                     <i :style="{width : getSyncing ? (getSyncing.currentBlock / getSyncing.highestBlock * 100).toFixed(2) + '%' : '100%'}"></i>
-                    <span v-if="getSyncing">{{getSyncing.currentBlock}}/{{getSyncing.highestBlock}}块   网络节点{{getPeerCount}}个</span>
-                    <span v-else>同步完成 {{getBlockNumber}} 块      网络节点{{getPeerCount}}个</span>
+                    <span v-if="getSyncing">{{getSyncing.currentBlock}}/{{getSyncing.highestBlock}}块&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   网络节点{{getPeerCount}}个</span>
+                    <span v-else>同步完成 {{getBlockNumber}} 块 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 网络节点{{getPeerCount}}个</span>
                 </section>
             </section>
 
-            <section class="index-trader big">
-                <h4>
+            <section v-if="!getSyncingState" class="index-trader big">
+                <h4  class="type-2">
                     <small>最近交易</small>
                 </h4>
-                <section class="table">
+                <ul class="list-box">
+                    <li v-for="item in lastTxs">
+                        <section>
+                            <div>
+                                <span>{{localDate(item.time)}}</span>
+                                <span><small>金额：</small><b>{{item.value}}</b></span>
+                            </div>
+                            <dl>
+                                <dt>HASH:</dt>
+                                <dd><copy :val="item.hash">{{item.hash}}</copy></dd>
+                            </dl>
+                        </section>
+                    </li>
+                </ul>
+                <empty-data v-if="lastTxs.length <= 0" >
+                    最近两轮暂无交易！
+                </empty-data>
+                <!--<section class="table">
                     <section class="table-head">
                         <dl>
                             <dd>时间</dd>
@@ -57,33 +78,35 @@
                             <dd>{{item.value}}</dd>
                         </dl>
                     </section>
-                </section>
+                </section>-->
             </section>
-            <section class="index-bbs big">
+
+            <section v-if="!getSyncingState" class="index-bbs big">
                 <h4 class="type-2">
                     <small>我的社区</small>
-                    <a href="javascript:;">查看更多</a>
+                    <!--<a href="javascript:;">查看更多</a>-->
                 </h4>
                 <empty-data v-if="getLastTextsOfficial.length <= 0" >
                     暂无动态！
                 </empty-data>
                 <ul>
                     <li v-for="item in getLastTextsOfficial">
-                        <a href="javascript:;"><b>{{item.text}}</b> <span>{{item.time}}</span></a>
+                        <a href="javascript:;"><b>{{item.text}}</b> <span>{{localDate(item.time)}}</span></a>
                     </li>
                 </ul>
             </section>
-            <section class="index-bbs big">
+
+            <section v-if="!getSyncingState" class="index-bbs big">
                 <h4 class="type-2">
                     <small>我的动态</small>
-                    <a href="javascript:;">查看更多</a>
+                    <!--<a href="javascript:;">查看更多</a>-->
                 </h4>
                 <empty-data v-if="getLastTexts.length <= 0">
                     暂无动态！
                 </empty-data>
                 <ul>
                     <li v-for="item in getLastTexts">
-                        <a href="javascript:;"><b>{{item.text}}</b> <span>{{item.time}}</span></a>
+                        <a href="javascript:;"><b>{{item.text}}</b> <span>{{localDate(item.time)}}</span></a>
                     </li>
                 </ul>
             </section>
@@ -119,6 +142,7 @@
                 'getBlockNumber',
                 'getLastTextsOfficial',
                 'getLastTexts',
+                'getSyncingState',
             ])
         },
     }
@@ -131,6 +155,7 @@
             min-height: 350px;
             h4{
                 b{
+                    display: block;
                     font-size: 45px;
                     margin-top: 10px;
                     line-height: 2;

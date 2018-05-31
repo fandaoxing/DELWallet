@@ -10,11 +10,11 @@
                     </label>
                     <label>
                         <span>手续费</span>
-                        <input type="text" v-model="gasPrice" :placeholder="getGasPrice" />
+                        <input type="text" v-model="gasPrice" :placeholder="getGasPriceView" />
                     </label>
                     <label class="big">
                         <span>收款人</span>
-                        <input type="text"  v-model="to" />
+                        <input type="text" v-model="to" />
                     </label>
                     <label class="big">
                         <button type="button" class="btn" @click="send">发送{{sendTransaction ? '...' : ''}}</button>
@@ -22,7 +22,25 @@
                 </section>
             </section>
             <section class="transfer-form">
-                <h4><small>成功发送</small></h4>
+                <h4 class="type-2"><small>成功发送</small></h4>
+                <ul class="list-box">
+                    <li v-for="item in sendTransactionRecord">
+                        <section>
+                            <div>
+                                <span>{{localDate(item.time)}}</span>
+                                <span><small>金额：</small><b>{{item.value}}</b></span>
+                            </div>
+                            <dl>
+                                <dt>to:</dt>
+                                <dd><copy :val="item.to.replace(/^0x/, '')">{{item.to.replace(/^0x/, '')}}</copy></dd>
+                            </dl>
+                            <dl>
+                                <dt>HASH:</dt>
+                                <dd><copy :val="item.hash">{{item.hash}}</copy></dd>
+                            </dl>
+                        </section>
+                    </li>
+                </ul><!--
                 <table-data class="transfer-table">
                     <<dl slot="head">
                         <dd>时间</dd>
@@ -36,7 +54,7 @@
                         <dd><copy class="wrap" :val="item.to" :title="item.to">{{item.to}}</copy></dd>
                         <dd>{{item.value}}</dd>
                     </dl>
-                </table-data>
+                </table-data>-->
                 <empty-data v-if="sendTransactionRecord.length <= 0" />
             </section>
         </section>
@@ -61,18 +79,16 @@
                 'sendTransaction',
                 'sendTransactionState',
                 'sendTransactionRecord',
+                'getGasPriceView',
             ])
         },
         watch : {
             sendTransaction (n, o){
-                // if(this.sendTransactionState){
-                //     this.$store.commit('msg/add', '转账成功<br />' + this.sendTransaction + '！');
-                //     this.value = '';
-                //     this.gas = '';
-                //     this.to = '';
-                // }else{
-                //     this.$store.commit('msg/err', '转账失败');
-                // };
+                if(this.sendTransactionState){
+                    this.value = '';
+                    this.gas = '';
+                    this.to = '';
+                };
             },
             value (n, o){
                 n = this.decimals(n);
@@ -91,14 +107,14 @@
                 return (val + '').replace(/\./, '?').replace(/[^0-9\?]*/g, "").replace(/\?/g, ".");
             },
             send (){
-
                 if(this.sendTransaction) return;
+
                 let {gasPrice, value, to} = this;
                 if(Number.parseFloat(value) + Number.parseFloat(gasPrice || this.getGasPrice) > this.getBalance ){
                     this.$store.commit('msg/err', '你的可用余额小于转账金额');
                     return;
                 };
-                if(value * 1 <= 0){
+                if(Number.parseFloat(value) <= 0){
                     this.$store.commit('msg/err', '数量不能小于0！');
                     return;
                 };

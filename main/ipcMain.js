@@ -1,10 +1,8 @@
-
-import { app, ipcMain , clipboard} from 'electron';
+const { app, ipcMain , clipboard} = require('electron');
 
 let mainWindow;
 // mainWindow.setProgressBar(0.5);
-
-export let sender;
+let sender;
 
 ipcMain.on('web-load', (event, arg) => {
     sender = event.sender;
@@ -40,8 +38,7 @@ ipcMain.on('copy', (event, arg) => {
 });
 
 
-export const setMainWindow = (win) => {
+module.exports.setMainWindow = (win) => {
     mainWindow = win;
-}
+};
 
-export default ipcMain;

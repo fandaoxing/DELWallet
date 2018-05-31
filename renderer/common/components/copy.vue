@@ -26,6 +26,6 @@
 <style scoped>
     .copy-components{
         display: inline-block;
-        cursor: copy;
+        cursor: pointer;
     }
 </style>

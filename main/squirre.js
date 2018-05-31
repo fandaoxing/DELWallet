@@ -1,5 +1,6 @@
-import {app, BrowserWindow} from "electron";
-
+const {app, BrowserWindow} = require( "electron");
+const {logger} = require('./log');
+const rimraf = require('rimraf');
 
 if(require('electron-squirrel-startup')) app.quit();
 
@@ -55,8 +56,15 @@ function handleSquirrelEvent() {
             // --squirrel-updated handlers
 
             // Remove desktop and start menu shortcuts
-            spawnUpdate(['--removeShortcut', exeName]);
-
+            let un= spawnUpdate(['--removeShortcut', exeName]);
+            un.on('exit', () => {
+                rimraf(rootAtomFolder, function (err) {
+                    if(err) {
+                        console.log(err)
+                    };
+                    console.log('删除老版本成功');
+                });
+            });
             setTimeout(app.quit, 1000);
             return true;
 
@@ -64,7 +72,6 @@ function handleSquirrelEvent() {
             // This is called on the outgoing version of your app before
             // we update to the new version - it's the opposite of
             // --squirrel-updated
-
             app.quit();
             return true;
     }

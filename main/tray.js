@@ -1,9 +1,10 @@
-import {Tray, Menu} from "electron";
-import packageConfig from '../package.json'
-import path from 'path'
-import {ipcMain } from 'electron';
+const {Tray, Menu} = require("electron");
+const packageConfig = require('../package.json')
+const path = require('path')
+const {ipcMain } = require('electron');
 
-export let sender;
+let sender;
+module.exports.sender = sender;
 
 ipcMain.on('web-load', (event, arg) => {
     sender = event.sender;
@@ -13,9 +14,9 @@ const appName = packageConfig.name;
 let mainWindow;
 let tray;
 
-export const trayMainWindow = (win) => {
+module.exports.trayMainWindow = (win) => {
     mainWindow = win;
-    tray = new Tray(path.join(__dirname, "../renderer/assets/images/icon/128x128.ico"));
+    tray = new Tray(path.join(__dirname, "../static/images/icon/128x128.ico"));
     const contextMenu = Menu.buildFromTemplate([
         {
             label: '退出登录',

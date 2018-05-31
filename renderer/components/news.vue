@@ -8,13 +8,14 @@
                         <span>收件人</span>
                         <input type="text" v-model="to"  />
                     </label>
-                    <label>
+                    <label v-if="false">
                         <span>手续费</span>
-                        <input type="text" v-model="gasPrice" :placeholder="getGasPrice" />
+                        <input type="text" v-model="gasPrice" :placeholder="getGasPriceView" />
                     </label>
                     <label class="big">
                         <span>简讯内容</span>
                         <textarea v-model="text"></textarea>
+                        <p class="news-cost">简讯费用：{{((text.length * 68 + 21000) * (gasPrice || getGasPrice)).toFixed(12)}} <small>（简讯费用以实际发送为准）</small></p>
                     </label>
                     <label class="big">
                         <button type="button" class="btn" @click="send">发送简讯{{sendText ? '...' : ''}}</button>
@@ -57,6 +58,7 @@
                 'getGasPrice',
                 'sendText',
                 'sendTextState',
+                'getGasPriceView',
             ])
         },
 
@@ -91,5 +93,8 @@
     .big .btn{
         width: 160px;
         float: right;
+    }
+    .news-cost{
+        padding: 10px 0;
     }
 </style>

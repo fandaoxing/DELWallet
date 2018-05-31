@@ -54,6 +54,14 @@ export default new Vuex.Store({
         lockAccountState : null,
         copy : null,
         copyState : null,
+        getGasPriceView : null,
+        getSyncingState : false,
+        minerReset : false,
+        sendAccounts : false,
+        sendGetCoinbase : false,
+        updateStatus : false,
+        producerMining : false,
+        updateProgress : {},
     },
     getters : {
         password (state){
@@ -63,6 +71,33 @@ export default new Vuex.Store({
     actions : {
     },
     mutations : {
+        producerMining (state, param){
+            state.producerMining = param;
+        },
+        updateProgress (state, param){
+            state.updateProgress = param;
+        },
+        updateStatus (state, param){
+            state.updateStatus = param;
+        },
+        sendGetCoinbase (state, param){
+            ipcRenderer.send('getCoinbase');
+        },
+        sendAccounts (state, param){
+            ipcRenderer.send('accounts');
+        },
+        minerReset (state, param){
+            ipcRenderer.send('minerReset', {
+                voters : state.accounts,
+                password : state.password
+            });
+        },
+        getSyncingState (state, param){
+            state.getSyncingState = param;
+        },
+        getGasPriceView (state, param){
+            state.getGasPriceView = param;
+        },
         copyState (state, param){
             state.copyState = param;
         },
@@ -133,11 +168,15 @@ export default new Vuex.Store({
             state.setMining = param;
             this.commit('miningState', true);
             //eth.startAutoVote({voters:eth.accounts, password:"123456"})
-            if(param){
-                ipcRenderer.send('minerStart', {
+            if(param.mining){
+                var voteParam = {
                     voters : state.accounts,
                     password : state.password
-                });
+                };
+                if(param.producer){
+                    voteParam.producer = state.getCoinbase;
+                };
+                ipcRenderer.send('minerStart', voteParam);
             }else{
                 ipcRenderer.send('minerStop');
             }
@@ -162,7 +201,7 @@ export default new Vuex.Store({
             if(param){
                 var sendTransaction = Object.assign({}, state.sendTransaction);
                 sendTransaction.hash = param;
-                sendTransaction.time = new Date().toLocaleString();
+                sendTransaction.time = new Date().toLocaleString("zh-Hans-CN",{hour12:false});
                 this.commit('sendTransactionRecord', sendTransaction);
             };
             state.sendTransactionState = param;

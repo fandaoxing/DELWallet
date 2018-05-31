@@ -1,12 +1,16 @@
-import {app, BrowserWindow, Tray, Menu} from "electron";
+const {app, BrowserWindow, Tray, Menu} = require("electron");
 require('./squirre');
-import {enableLiveReload} from "electron-compile";
-import installExtension, {VUEJS_DEVTOOLS} from "electron-devtools-installer";
-import path from 'path'
-import packageConfig from '../package.json'
-import {trayMainWindow} from './tray'
-import ipcMain, {setMainWindow} from './ipcMain'
-import delStart from './deld'
+const {enableLiveReload} = require("electron-compile");
+const installExtension = require("electron-devtools-installer");
+const {VUEJS_DEVTOOLS} = require("electron-devtools-installer");
+const path = require('path');
+
+const {setMainWindow} = require('./ipcMain');
+const {logger} = require('./log');
+const update = require( './update');
+const packageConfig = require( '../package.json');
+const {trayMainWindow} = require('./tray');
+const {delStart} = require( './deld');
 
 let mainWindow;
 
@@ -20,6 +24,7 @@ const isSecondInstance = app.makeSingleInstance((commandLine, workingDirectory) 
         mainWindow.focus()
     }
 });
+
 if (isSecondInstance) {
     app.quit();
 }
@@ -39,27 +44,42 @@ if (isDevMode) {
  */
 delStart();
 
+
 const createWindow = async () => {
+    try{
+        mainWindow = new BrowserWindow({
+            width: 1280,
+            height: 768,
+            minWidth : 1024,
+            minHeight : 680,
+            skipTaskbar : false,
+            focusable : true,
+            title : appName,
+            frame: false,
+            titleBarStyle: 'hiddenInset',
+            backgroundColor: '#323c6d',
+            icon: path.join(__dirname, "../static/images/icon/128x128.ico"),
+        });
+    }catch (e) {
+        logger.error(e);
+    }
 
-    mainWindow = new BrowserWindow({
-        width: 1280,
-        height: 768,
-        minWidth : 1024,
-        minHeight : 680,
-        skipTaskbar : false,
-        focusable : true,
-        title : appName,
-        frame: false,
-        titleBarStyle: 'hiddenInset',
-        backgroundColor: '#323c6d',
-        icon: path.join(__dirname, "../renderer/assets/images/icon/128x128.ico"),
-    });
+    try{
+        trayMainWindow(mainWindow);
+        setMainWindow(mainWindow);
+    }catch (e) {
+        logger.error(e);
+    }
 
-    setMainWindow(mainWindow);
-    trayMainWindow(mainWindow);
+    try {
+        mainWindow.loadURL(isDevMode ? 'http://localhost:8080' : `file://${path.join(__dirname, "../dist/index.html")}`);
+    }catch (e) {
+        logger.error(e);
+    };
 
-    mainWindow.loadURL(isDevMode ? 'http://localhost:8080' : `file://${__dirname}/../dist/index.html`);
-
+    // mainWindow.loadURL(isDevMode ? 'http://localhost:8080' : `file://${path.join(__dirname, "../dist/index.html")}`);
+    // mainWindow.loadURL(isDevMode ? 'http://localhost:8080' : `file://${__dirname}/../dist/index.html`);
+    // mainWindow.loadURL(isDevMode ? 'http://localhost:8080' : path.join(__dirname, "../dist/index.html"));
 
     if (isDevMode) {
         await installExtension(VUEJS_DEVTOOLS);

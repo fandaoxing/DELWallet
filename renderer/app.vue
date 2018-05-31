@@ -5,12 +5,13 @@
             <register v-if="!accountsState && !loginStatus" />
             <section class="main" v-if="loginStatus">
                 <left-components />
-                <section class="main-right">
+                <section class="main-right" :class="getSyncingState ? 'active' : ''">
                     <router-view/>
                 </section>
             </section>
         </section>
         <ready v-if="!delState" />
+        <update v-if="updateStatus" />
         <header-components :class="!loginStatus ? 'login-head' : ''" />
         <msg />
     </section>
@@ -22,6 +23,7 @@
     import ready from './common/components/ready'
     import login from './components/login'
     import register from './components/register'
+    import update from './components/update'
     import { mapState } from 'vuex';
     export default {
         name: "app",
@@ -39,9 +41,17 @@
                 'lockAccount',
                 'lockAccountState',
                 'copyState',
+                'getSyncingState',
+                'updateStatus',
             ])
         },
         watch : {
+            updateStatus (n, o){
+                if(typeof n == 'string'){
+                    this.$store.commit('msg/err', '自动更新失败\n' + n);
+                    this.$store.commit('updateStatus', false);
+                };
+            },
             copyState (n, o){
                 if(n){
                     this.$store.commit('msg/add', {
@@ -76,7 +86,7 @@
                 };
             },
         },
-        components : {headerComponents, leftComponents, login, ready, register},
+        components : {headerComponents, leftComponents, login, ready, register, update},
         created (){},
         mounted (){},
         methods :{
