@@ -1,0 +1,54 @@
+{
+  "env": {
+    "development": {
+      "application/javascript": {
+        "presets": [
+          [
+            "env",
+            {
+              "targets": {
+                "electron": "2.0"
+              }
+            }
+          ],
+          "react"
+        ],
+        "plugins": [
+          "transform-async-to-generator"
+        ],
+        "sourceMaps": "inline"
+      },
+      "text/less": {
+        "sourceMaps": "inline"
+      },
+      "text/stylus": {
+        "sourceMaps": "inline"
+      }
+    },
+    "production": {
+      "application/javascript": {
+        "presets": [
+          [
+            "env",
+            {
+              "targets": {
+                "electron": "2.0"
+              }
+            }
+          ],
+          "react"
+        ],
+        "plugins": [
+          "transform-async-to-generator"
+        ],
+        "sourceMaps": "none"
+      },
+     "text/less": {
+       "sourceMaps": "none"
+     },
+     "text/stylus": {
+       "sourceMaps": "none"
+     }
+    }
+  }
+}
