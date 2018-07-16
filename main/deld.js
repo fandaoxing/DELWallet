@@ -73,11 +73,17 @@ function delStart(){
         return false;
     };
     try {
+        // if(isDevMode){
+        //     delD = execFile(path.join(__dirname, "../deld.exe"), ['--testnet']);
+        // }else{
+        //     logger.info(path.join(__dirname, "../../app.asar.unpacked/deld.exe"));
+        //     delD = execFile(path.join(__dirname, "../../app.asar.unpacked/deld.exe"), ['--testnet']);
+        // };
         if(isDevMode){
-            delD = execFile(path.join(__dirname, "../deld.exe"), ['--testnet']);
+            delD = execFile(path.join(__dirname, "../deld.exe"));
         }else{
             logger.info(path.join(__dirname, "../../app.asar.unpacked/deld.exe"));
-            delD = execFile(path.join(__dirname, "../../app.asar.unpacked/deld.exe"), ['--testnet']);
+            delD = execFile(path.join(__dirname, "../../app.asar.unpacked/deld.exe"));
         };
         delD.stdout.on('data', setDelState);
         delD.stderr.on('data', setDelState);
@@ -105,6 +111,18 @@ function delStart(){
         }
     });
 }
+
+// setTimeout(() => {
+//     delState = true;
+//     logger.info(`delState : ${delState}`);
+//     console.log(delState, 'delState');
+//     if(sender && sender.send){
+//         if(getMining()){
+//             sender.send('minerReset');
+//         };
+//         sender.send('delState', delState);
+//     }
+// }, 5000)
 
 module.exports.getDelD = function () {
     return delD;

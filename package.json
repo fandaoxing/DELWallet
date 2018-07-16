@@ -1,8 +1,8 @@
 {
   "name": "DELWallet",
   "productName": "DELWallet",
-  "version": "0.9.5",
-  "versionWallet": "v0.9.5-unstable",
+  "version": "1.0.0",
+  "versionWallet": "v1.0.0-stable",
   "description": "复式账本全球区块链专案应用落地区块链技术 v4.0",
   "main": "main/index.js",
   "scripts": {
